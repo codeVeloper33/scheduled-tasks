@@ -1,1 +1,1 @@
-pandas
+schedule==1.2.0
