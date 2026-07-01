@@ -1,2 +1,21 @@
+# Scheduling
 schedule==1.2.0
-python-dotenv==1.0.0
+
+# Email handling (built-in, no installation needed)
+# smtplib - built-in
+# email - built-in
+
+# CSV handling (built-in, no installation needed)
+# csv - built-in
+
+# Random (built-in, no installation needed)
+# random - built-in
+
+# Datetime (built-in, no installation needed)
+# datetime - built-in
+
+# OS (built-in, no installation needed)
+# os - built-in
+
+# Time (built-in, no installation needed)
+# time - built-in
