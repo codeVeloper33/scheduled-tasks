@@ -3,13 +3,30 @@ import random
 import smtplib
 import datetime as dt
 import time
+import os  # ← Add this for environment variables
 import schedule
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Your email credentials
-MY_EMAIL = "your_email@gmail.com"
-PASSWORD = "your_app_password"  # Use App Password for Gmail
+# Load environment variables from .env file (optional but recommended)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # Load variables from .env file
+except ImportError:
+    print("⚠️ python-dotenv not installed. Using system environment variables.")
+
+# Get credentials from environment variables
+MY_EMAIL = os.getenv('MY_EMAIL')
+PASSWORD = os.getenv('PASSWORD')
+
+# Check if credentials are set
+if not MY_EMAIL or not PASSWORD:
+    print("❌ ERROR: Email or password not found in environment variables!")
+    print("Please set MY_EMAIL and PASSWORD environment variables.")
+    print("Or create a .env file with:")
+    print("MY_EMAIL=your_email@gmail.com")
+    print("PASSWORD=your_app_password")
+    exit(1)
 
 def read_csv_file(filename="birthdays.csv"):
     """Read the CSV file and return list of dictionaries"""
@@ -43,7 +60,6 @@ def get_random_wish(person_name):
         try:
             with open(file, 'r', encoding='utf-8') as f:
                 wish_content = f.read().strip()
-                # Replace [name] with the actual person's name
                 wish_content = wish_content.replace('[name]', person_name)
                 wishes.append(wish_content)
         except FileNotFoundError:
@@ -57,16 +73,12 @@ def get_random_wish(person_name):
 def send_birthday_email(recipient_name, recipient_email, wish):
     """Send birthday email with proper UTF-8 encoding"""
     try:
-        # Create email with proper encoding
         msg = MIMEMultipart()
         msg['From'] = MY_EMAIL
         msg['To'] = recipient_email
         msg['Subject'] = f"Happy Birthday {recipient_name}! 🎉"
-        
-        # Attach the message with UTF-8 encoding
         msg.attach(MIMEText(wish, 'plain', 'utf-8'))
         
-        # Send the email
         with smtplib.SMTP("smtp.gmail.com", 587) as connection:
             connection.starttls()
             connection.login(user=MY_EMAIL, password=PASSWORD)
@@ -89,13 +101,11 @@ def check_and_send_birthdays():
     print(f"📅 Today is {today.strftime('%B %d, %Y')}")
     print(f"{'='*60}")
     
-    # Read birthdays from CSV
     birthdays = read_csv_file()
     if not birthdays:
         print("❌ No birthday data available!")
         return
     
-    # Find today's birthdays
     todays_birthdays = []
     for person in birthdays:
         if person['month'] == today_month and person['day'] == today_day:
@@ -107,23 +117,19 @@ def check_and_send_birthdays():
     
     print(f"🎂 Found {len(todays_birthdays)} birthday(s) today!")
     
-    # Send wishes to all birthday people
     for person in todays_birthdays:
-        # Get personalized wish
         wish = get_random_wish(person['name'])
         
         print(f"\n📝 Sending to {person['name']}...")
         print(f"   Email: {person['email']}")
         print(f"   Wish: {wish[:100]}...")
         
-        # Send the email
         send_birthday_email(
             person['name'],
             person['email'],
             wish
         )
         
-        # Small delay to avoid rate limiting
         time.sleep(2)
     
     print(f"\n✅ All birthday wishes sent for today!")
@@ -139,32 +145,14 @@ def run_automated():
     print("="*60)
     print("Press Ctrl+C to stop\n")
     
-    # Schedule to run daily at 9:00 AM
     schedule.every().day.at("09:00").do(check_and_send_birthdays)
     
-    # Also run once immediately on startup
     print("🚀 Running initial check...")
     check_and_send_birthdays()
     
-    # Keep the script running
     while True:
         schedule.run_pending()
-        time.sleep(60)  # Check every minute
-
-def run_once():
-    """Run the birthday check once (for testing)"""
-    print("🎂 Running birthday check once...")
-    check_and_send_birthdays()
+        time.sleep(60)
 
 if __name__ == "__main__":
-    # Choose mode
-    print("Select mode:")
-    print("1. Run once (for testing)")
-    print("2. Run automated (runs daily at 9:00 AM)")
-    
-    choice = input("Enter choice (1 or 2): ").strip()
-    
-    if choice == "1":
-        run_once()
-    else:
-        run_automated()
+    run_automated()
