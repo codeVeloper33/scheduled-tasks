@@ -1,38 +1,170 @@
-# To run and test the code you need to update 4 places:
-# 1. Change MY_EMAIL/MY_PASSWORD to your own details.
-# 2. Go to your email provider and make it allow less secure apps.
-# 3. Update the SMTP ADDRESS to match your email provider.
-# 4. Update birthdays.csv to contain today's month and day.
-# See the solution video in the 100 Days of Python Course for explainations.
-
-
-from datetime import datetime
-import pandas
+import csv
 import random
 import smtplib
-import os
+import datetime as dt
+import time
+import schedule
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-# import os and use it to get the Github repository secrets
-MY_EMAIL = os.environ.get("MY_EMAIL")
-MY_PASSWORD = os.environ.get("MY_PASSWORD")
+# Your email credentials
+MY_EMAIL = "your_email@gmail.com"
+PASSWORD = "your_app_password"  # Use App Password for Gmail
 
-today = datetime.now()
-today_tuple = (today.month, today.day)
+def read_csv_file(filename="birthdays.csv"):
+    """Read the CSV file and return list of dictionaries"""
+    birthdays = []
+    try:
+        with open(filename, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                birthday = {
+                    'name': row['name'].strip(),
+                    'email': row['email'].strip(),
+                    'year': int(row['year'].strip()),
+                    'month': int(row['month'].strip()),
+                    'day': int(row['day'].strip())
+                }
+                birthdays.append(birthday)
+        return birthdays
+    except FileNotFoundError:
+        print(f"❌ Error: {filename} not found!")
+        return []
+    except Exception as e:
+        print(f"❌ Error reading CSV: {e}")
+        return []
 
-data = pandas.read_csv("birthdays.csv")
-birthdays_dict = {(data_row["month"], data_row["day"])                  : data_row for (index, data_row) in data.iterrows()}
-if today_tuple in birthdays_dict:
-    birthday_person = birthdays_dict[today_tuple]
-    file_path = f"letter_templates/letter_{random.randint(1, 3)}.txt"
-    with open(file_path) as letter_file:
-        contents = letter_file.read()
-        contents = contents.replace("[NAME]", birthday_person["name"])
+def get_random_wish(person_name):
+    """Pick a random birthday wish and replace [name] with the person's name"""
+    wish_files = ["letter_templates/letter_1.txt", "letter_templates/letter_2.txt", "letter_templates/letter_3.txt"]
+    wishes = []
+    
+    for file in wish_files:
+        try:
+            with open(file, 'r', encoding='utf-8') as f:
+                wish_content = f.read().strip()
+                # Replace [name] with the actual person's name
+                wish_content = wish_content.replace('[name]', person_name)
+                wishes.append(wish_content)
+        except FileNotFoundError:
+            print(f"⚠️ Warning: {file} not found, skipping...")
+    
+    if not wishes:
+        return f"Happy Birthday {person_name}! 🎂"
+    
+    return random.choice(wishes)
 
-    with smtplib.SMTP("YOUR EMAIL PROVIDER SMTP SERVER ADDRESS") as connection:
-        connection.starttls()
-        connection.login(MY_EMAIL, MY_PASSWORD)
-        connection.sendmail(
-            from_addr=MY_EMAIL,
-            to_addrs=birthday_person["email"],
-            msg=f"Subject:Happy Birthday!\n\n{contents}"
+def send_birthday_email(recipient_name, recipient_email, wish):
+    """Send birthday email with proper UTF-8 encoding"""
+    try:
+        # Create email with proper encoding
+        msg = MIMEMultipart()
+        msg['From'] = MY_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Happy Birthday {recipient_name}! 🎉"
+        
+        # Attach the message with UTF-8 encoding
+        msg.attach(MIMEText(wish, 'plain', 'utf-8'))
+        
+        # Send the email
+        with smtplib.SMTP("smtp.gmail.com", 587) as connection:
+            connection.starttls()
+            connection.login(user=MY_EMAIL, password=PASSWORD)
+            connection.send_message(msg)
+            
+        print(f"✅ Birthday wish sent to {recipient_name} ({recipient_email})")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send to {recipient_name}: {e}")
+        return False
+
+def check_and_send_birthdays():
+    """Check today's birthdays and automatically send wishes"""
+    today = dt.datetime.now()
+    today_month = today.month
+    today_day = today.day
+    
+    print(f"\n{'='*60}")
+    print(f"⏰ Checking birthdays at {today.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"📅 Today is {today.strftime('%B %d, %Y')}")
+    print(f"{'='*60}")
+    
+    # Read birthdays from CSV
+    birthdays = read_csv_file()
+    if not birthdays:
+        print("❌ No birthday data available!")
+        return
+    
+    # Find today's birthdays
+    todays_birthdays = []
+    for person in birthdays:
+        if person['month'] == today_month and person['day'] == today_day:
+            todays_birthdays.append(person)
+    
+    if not todays_birthdays:
+        print(f"🎯 No birthdays today!")
+        return
+    
+    print(f"🎂 Found {len(todays_birthdays)} birthday(s) today!")
+    
+    # Send wishes to all birthday people
+    for person in todays_birthdays:
+        # Get personalized wish
+        wish = get_random_wish(person['name'])
+        
+        print(f"\n📝 Sending to {person['name']}...")
+        print(f"   Email: {person['email']}")
+        print(f"   Wish: {wish[:100]}...")
+        
+        # Send the email
+        send_birthday_email(
+            person['name'],
+            person['email'],
+            wish
         )
+        
+        # Small delay to avoid rate limiting
+        time.sleep(2)
+    
+    print(f"\n✅ All birthday wishes sent for today!")
+    print(f"{'='*60}\n")
+
+def run_automated():
+    """Run the automated birthday bot with scheduling"""
+    print("🎂 BIRTHDAY BOT STARTED")
+    print("="*60)
+    print(f"📅 Current date: {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("🔄 Will check birthdays every day at 9:00 AM")
+    print("📧 Will automatically send wishes to birthday people")
+    print("="*60)
+    print("Press Ctrl+C to stop\n")
+    
+    # Schedule to run daily at 9:00 AM
+    schedule.every().day.at("09:00").do(check_and_send_birthdays)
+    
+    # Also run once immediately on startup
+    print("🚀 Running initial check...")
+    check_and_send_birthdays()
+    
+    # Keep the script running
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
+def run_once():
+    """Run the birthday check once (for testing)"""
+    print("🎂 Running birthday check once...")
+    check_and_send_birthdays()
+
+if __name__ == "__main__":
+    # Choose mode
+    print("Select mode:")
+    print("1. Run once (for testing)")
+    print("2. Run automated (runs daily at 9:00 AM)")
+    
+    choice = input("Enter choice (1 or 2): ").strip()
+    
+    if choice == "1":
+        run_once()
+    else:
+        run_automated()
