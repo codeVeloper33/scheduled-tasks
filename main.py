@@ -3,27 +3,26 @@ import random
 import smtplib
 import datetime as dt
 import time
-import os  # ← Add this for environment variables
+import os
 import schedule
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# Load environment variables from .env file (optional but recommended)
+# Load environment variables from .env file
 try:
     from dotenv import load_dotenv
-    load_dotenv()  # Load variables from .env file
+    load_dotenv()
 except ImportError:
     print("⚠️ python-dotenv not installed. Using system environment variables.")
 
 # Get credentials from environment variables
-MY_EMAIL = os.environ.get('MY_EMAIL')
-PASSWORD = os.environ.get('PASSWORD')
+MY_EMAIL = os.getenv('MY_EMAIL')
+PASSWORD = os.getenv('PASSWORD')
 
 # Check if credentials are set
 if not MY_EMAIL or not PASSWORD:
     print("❌ ERROR: Email or password not found in environment variables!")
-    print("Please set MY_EMAIL and PASSWORD environment variables.")
-    print("Or create a .env file with:")
+    print("Please create a .env file with:")
     print("MY_EMAIL=your_email@gmail.com")
     print("PASSWORD=your_app_password")
     exit(1)
