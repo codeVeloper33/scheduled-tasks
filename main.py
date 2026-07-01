@@ -16,8 +16,8 @@ except ImportError:
     print("⚠️ python-dotenv not installed. Using system environment variables.")
 
 # Get credentials from environment variables
-MY_EMAIL = os.getenv('MY_EMAIL')
-PASSWORD = os.getenv('PASSWORD')
+MY_EMAIL = os.environ.get('MY_EMAIL')
+PASSWORD = os.environ.get('PASSWORD')
 
 # Check if credentials are set
 if not MY_EMAIL or not PASSWORD:
